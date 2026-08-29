@@ -25,35 +25,70 @@ struct PaperScreenApp: App {
         controller.excludedApps.contains(controller.focusedApp.frontBundleID ?? "")
     }
 
+    private var statusText: String {
+        switch (controller.enabled, settings.securityEnabled) {
+        case (true, true): return "On"
+        case (true, false): return "Paper"
+        case (false, true): return "Shield"
+        case (false, false): return "Off"
+        }
+    }
+
     var body: some Scene {
         MenuBarExtra {
             VStack(spacing: 12) {
-                // Hero button — per-app paper overlay
-                Button {
-                    if let bid = controller.focusedApp.frontBundleID {
-                        if currentAppExcluded {
-                            controller.excludedApps.remove(bid)
-                        } else {
-                            controller.excludedApps.insert(bid)
-                        }
-                    }
-                } label: {
-                    Label(
-                        currentAppExcluded
-                            ? "Turn On for \(currentAppName)"
-                            : "Turn Off for \(currentAppName)",
-                        systemImage: currentAppExcluded ? "eye" : "eye.slash"
-                    )
-                    .frame(maxWidth: .infinity)
+                // Title bar
+                HStack(spacing: 6) {
+                    Image(systemName: "menubar.rectangle")
+                        .frame(width: 18)
+                    Text("PaperScreen")
+                        .font(.headline)
+                    Spacer()
+                    Text(statusText)
+                        .font(.caption)
+                        .foregroundStyle(
+                            controller.enabled || settings.securityEnabled
+                                ? .green : .secondary
+                        )
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .tint(currentAppExcluded ? .green : .primary)
-                .disabled(controller.focusedApp.frontBundleID == nil)
 
-                // Paper controls
-                VStack(alignment: .leading, spacing: 10) {
-                    Picker("Style", selection: $settings.texture) {
+                // ══ SECTION 1: PAPER MODE ══
+                VStack(spacing: 10) {
+                    HStack {
+                        Text("PAPER MODE")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Toggle("", isOn: $controller.enabled)
+                            .toggleStyle(.switch)
+                            .controlSize(.mini)
+                            .labelsHidden()
+                    }
+
+                    Button {
+                        if let bid = controller.focusedApp.frontBundleID {
+                            if currentAppExcluded {
+                                controller.excludedApps.remove(bid)
+                            } else {
+                                controller.excludedApps.insert(bid)
+                            }
+                        }
+                    } label: {
+                        Label(
+                            currentAppExcluded
+                                ? "Turn On for \(currentAppName)"
+                                : "Turn Off for \(currentAppName)",
+                            systemImage: currentAppExcluded ? "eye" : "eye.slash"
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .tint(currentAppExcluded ? .green : .primary)
+                    .disabled(!controller.enabled
+                              || controller.focusedApp.frontBundleID == nil)
+
+                    Picker("", selection: $settings.texture) {
                         ForEach(PaperTexture.allCases) { texture in
                             Text(texture.displayName).tag(texture)
                         }
@@ -73,15 +108,17 @@ struct PaperScreenApp: App {
                             .monospacedDigit()
                             .frame(width: 34, alignment: .trailing)
                     }
+                    .opacity(controller.enabled ? 1 : 0.4)
                 }
 
                 Divider()
 
-                // Privacy Shield — independent of paper mode
-                VStack(alignment: .leading, spacing: 10) {
+                // ══ SECTION 2: PRIVACY SHIELD ══
+                VStack(spacing: 10) {
                     HStack {
-                        Label("Privacy Shield", systemImage: "shield.lefthalf.filled")
-                            .font(.callout)
+                        Text("PRIVACY SHIELD")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                         Spacer()
                         Toggle("", isOn: $settings.securityEnabled)
                             .toggleStyle(.switch)
@@ -89,27 +126,26 @@ struct PaperScreenApp: App {
                             .labelsHidden()
                     }
 
-                    if settings.securityEnabled {
-                        Picker(selection: $settings.securityTechnique) {
-                            ForEach(SecurityTechnique.allCases) { tech in
-                                Text(tech.displayName).tag(tech)
-                            }
-                        } label: {
-                            EmptyView()
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-
-                        HStack(spacing: 8) {
-                            Image(systemName: "shield")
-                                .foregroundStyle(.secondary)
-                            Slider(value: $settings.securityStrength, in: 0.1...1.0)
-                            Text("\(Int(settings.securityStrength * 100))%")
-                                .font(.caption)
-                                .monospacedDigit()
-                                .frame(width: 34, alignment: .trailing)
+                    Picker("", selection: $settings.securityTechnique) {
+                        ForEach(SecurityTechnique.allCases) { tech in
+                            Text(tech.displayName).tag(tech)
                         }
                     }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .disabled(!settings.securityEnabled)
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "shield")
+                            .foregroundStyle(.secondary)
+                        Slider(value: $settings.securityStrength, in: 0.1...1.0)
+                            .disabled(!settings.securityEnabled)
+                        Text("\(Int(settings.securityStrength * 100))%")
+                            .font(.caption)
+                            .monospacedDigit()
+                            .frame(width: 34, alignment: .trailing)
+                    }
+                    .opacity(settings.securityEnabled ? 1 : 0.4)
                 }
 
                 if !controller.excludedApps.isEmpty {
@@ -122,24 +158,8 @@ struct PaperScreenApp: App {
 
                 Divider()
 
-                // Footer: independent master switches + actions
-                HStack(spacing: 10) {
-                    Text("Paper")
-                        .font(.caption)
-                    Toggle("", isOn: $controller.enabled)
-                        .toggleStyle(.switch)
-                        .controlSize(.mini)
-                        .labelsHidden()
-
-                    Spacer()
-
-                    Text("Shield")
-                        .font(.caption)
-                    Toggle("", isOn: $settings.securityEnabled)
-                        .toggleStyle(.switch)
-                        .controlSize(.mini)
-                        .labelsHidden()
-
+                // Bottom row — settings & quit only
+                HStack {
                     Spacer()
 
                     Button {
