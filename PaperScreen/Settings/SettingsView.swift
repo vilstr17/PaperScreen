@@ -5,60 +5,32 @@ struct SettingsView: View {
     @ObservedObject var controller: PaperOverlayController
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                Picker(
-                    "Paper Type",
-                    selection: $settings.texture
-                ) {
-                    ForEach(PaperTexture.allCases) { texture in
-                        Text(texture.displayName)
-                            .tag(texture)
-                    }
-                }
-                .pickerStyle(.menu)
-                .padding()
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Apps without overlay")
+                .font(.headline)
 
-                Section {
-                    Text("Opacity")
-                    Slider(
-                        value: $settings.opacity,
-                        in: 0.05...0.4
-                    )
-                }
-
-                Section {
-                    Text("Apps without overlay")
-                        .font(.headline)
-                    if controller.excludedApps.isEmpty {
-                        Text("None — overlay is on everywhere.")
+            if controller.excludedApps.isEmpty {
+                Text("Overlay is on for every app.\n\nUse “Turn Off for …” in the menu bar while an app is in front to exclude it.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(Array(controller.excludedApps).sorted(), id: \.self) { app in
+                    HStack {
+                        Text(app)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(Array(controller.excludedApps).sorted(), id: \.self) { app in
-                            HStack {
-                                Text(app)
-                                    .font(.caption)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                                Spacer()
-                                Button {
-                                    controller.excludedApps.remove(app)
-                                } label: {
-                                    Image(systemName: "minus.circle.fill")
-                                        .foregroundStyle(.red)
-                                }
-                                .buttonStyle(.plain)
-                            }
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer()
+                        Button {
+                            controller.excludedApps.remove(app)
+                        } label: {
+                            Image(systemName: "minus.circle.fill")
+                                .foregroundStyle(.red)
                         }
+                        .buttonStyle(.plain)
                     }
-                    Text("Tip: use “Disable for Current App” in the menu bar while the app is in front.")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
                 }
-                .padding()
             }
-            .padding()
 
             Spacer(minLength: 0)
 
@@ -70,8 +42,8 @@ struct SettingsView: View {
                 .font(.footnote)
                 .foregroundColor(.secondary)
             }
-            .padding(.bottom, 12)
         }
-        .frame(width: 360, height: 380)
+        .padding(16)
+        .frame(width: 300, height: 260)
     }
 }
