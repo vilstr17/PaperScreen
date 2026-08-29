@@ -17,16 +17,19 @@ struct PaperScreenApp: App {
         )
     }
 
+    private var currentAppExcluded: Bool {
+        controller.excludedApps.contains(controller.focusedApp.frontBundleID ?? "")
+    }
+
     var body: some Scene {
         MenuBarExtra {
             VStack {
                 // Header
                 HStack {
-                    Image("MenuBarIcon")
-                        .renderingMode(.template)
+                    Image(systemName: "menubar.rectangle")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 22, height: 22)
+                        .frame(width: 20, height: 20)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("PaperScreen")
@@ -50,8 +53,42 @@ struct PaperScreenApp: App {
                         ? "checkmark.circle.fill"
                         : "circle"
                 ).padding()
-                
-                
+
+
+                // Current app section
+                VStack(alignment: .leading, spacing: 6) {
+                    Label {
+                        Text(controller.focusedApp.frontAppName?.capitalized ?? "Unknown App")
+                    } icon: {
+                        Image(systemName: "app.dashed")
+                    }
+
+                    Button {
+                        if let bid = controller.focusedApp.frontBundleID {
+                            if currentAppExcluded {
+                                controller.excludedApps.remove(bid)
+                            } else {
+                                controller.excludedApps.insert(bid)
+                            }
+                        }
+                    } label: {
+                        Label(
+                            currentAppExcluded
+                                ? "Enable for Current App"
+                                : "Disable for Current App",
+                            systemImage: currentAppExcluded
+                                ? "eye"
+                                : "eye.slash"
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding()
+
+                Divider()
+
                 // Quick info
                 VStack(alignment: .leading, spacing: 6) {
                     Label {
@@ -71,7 +108,7 @@ struct PaperScreenApp: App {
 
                 Divider()
 
-                
+
                 Button {
                     controller.enabled.toggle()
                 } label: {
@@ -106,7 +143,10 @@ struct PaperScreenApp: App {
             .padding(8)
 
         } label: {
-            Image("MenuBarIcon")
+            // System symbol — no asset catalog needed, always renders.
+            Image(systemName: controller.enabled
+                    ? "menubar.rectangle"
+                    : "menubar.rectangle")
                 .renderingMode(.template)
                 .opacity(controller.enabled ? 1.0 : 0.4)
         }

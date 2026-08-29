@@ -18,6 +18,7 @@ struct SettingsView: View {
                 }
                 .pickerStyle(.menu)
                 .padding()
+
                 Section {
                     Text("Opacity")
                     Slider(
@@ -25,6 +26,37 @@ struct SettingsView: View {
                         in: 0.05...0.4
                     )
                 }
+
+                Section {
+                    Text("Apps without overlay")
+                        .font(.headline)
+                    if controller.excludedApps.isEmpty {
+                        Text("None — overlay is on everywhere.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(Array(controller.excludedApps).sorted(), id: \.self) { app in
+                            HStack {
+                                Text(app)
+                                    .font(.caption)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Spacer()
+                                Button {
+                                    controller.excludedApps.remove(app)
+                                } label: {
+                                    Image(systemName: "minus.circle.fill")
+                                        .foregroundStyle(.red)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    Text("Tip: use “Disable for Current App” in the menu bar while the app is in front.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
             }
             .padding()
 
@@ -40,5 +72,6 @@ struct SettingsView: View {
             }
             .padding(.bottom, 12)
         }
+        .frame(width: 360, height: 380)
     }
 }
