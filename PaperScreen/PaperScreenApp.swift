@@ -28,18 +28,6 @@ struct PaperScreenApp: App {
     var body: some Scene {
         MenuBarExtra {
             VStack(spacing: 12) {
-                // Header
-                HStack(spacing: 6) {
-                    Image(systemName: "menubar.rectangle")
-                        .frame(width: 18)
-                    Text("PaperScreen")
-                        .font(.headline)
-                    Spacer()
-                    Text(controller.enabled ? "On" : "Off")
-                        .font(.caption)
-                        .foregroundStyle(controller.enabled ? .green : .secondary)
-                }
-
                 // Hero button — per-app paper overlay
                 Button {
                     if let bid = controller.focusedApp.frontBundleID {
@@ -63,7 +51,7 @@ struct PaperScreenApp: App {
                 .tint(currentAppExcluded ? .green : .primary)
                 .disabled(controller.focusedApp.frontBundleID == nil)
 
-                // Live controls — paper
+                // Paper controls
                 VStack(alignment: .leading, spacing: 10) {
                     Picker("Style", selection: $settings.texture) {
                         ForEach(PaperTexture.allCases) { texture in
@@ -73,11 +61,13 @@ struct PaperScreenApp: App {
                     .pickerStyle(.menu)
                     .labelsHidden()
                     .frame(maxWidth: .infinity)
+                    .disabled(!controller.enabled)
 
                     HStack(spacing: 8) {
                         Image(systemName: "circle.lefthalf.filled")
                             .foregroundStyle(.secondary)
                         Slider(value: $settings.opacity, in: 0.05...0.4)
+                            .disabled(!controller.enabled)
                         Text("\(Int(settings.opacity * 100))%")
                             .font(.caption)
                             .monospacedDigit()
@@ -87,24 +77,31 @@ struct PaperScreenApp: App {
 
                 Divider()
 
-                // Security section
+                // Privacy Shield — independent of paper mode
                 VStack(alignment: .leading, spacing: 10) {
-                    Toggle("Privacy Shield", isOn: $settings.securityEnabled)
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
+                    HStack {
+                        Label("Privacy Shield", systemImage: "shield.lefthalf.filled")
+                            .font(.callout)
+                        Spacer()
+                        Toggle("", isOn: $settings.securityEnabled)
+                            .toggleStyle(.switch)
+                            .controlSize(.mini)
+                            .labelsHidden()
+                    }
 
                     if settings.securityEnabled {
-                        Picker("Technique", selection: $settings.securityTechnique) {
+                        Picker(selection: $settings.securityTechnique) {
                             ForEach(SecurityTechnique.allCases) { tech in
-                                Label(tech.displayName, systemImage: tech.systemImage)
-                                    .tag(tech)
+                                Text(tech.displayName).tag(tech)
                             }
+                        } label: {
+                            EmptyView()
                         }
                         .pickerStyle(.segmented)
                         .labelsHidden()
 
                         HStack(spacing: 8) {
-                            Image(systemName: "shield.lefthalf.filled")
+                            Image(systemName: "shield")
                                 .foregroundStyle(.secondary)
                             Slider(value: $settings.securityStrength, in: 0.1...1.0)
                             Text("\(Int(settings.securityStrength * 100))%")
@@ -125,11 +122,23 @@ struct PaperScreenApp: App {
 
                 Divider()
 
-                // Footer
-                HStack {
-                    Toggle("Enabled", isOn: $controller.enabled)
+                // Footer: independent master switches + actions
+                HStack(spacing: 10) {
+                    Text("Paper")
+                        .font(.caption)
+                    Toggle("", isOn: $controller.enabled)
                         .toggleStyle(.switch)
-                        .controlSize(.small)
+                        .controlSize(.mini)
+                        .labelsHidden()
+
+                    Spacer()
+
+                    Text("Shield")
+                        .font(.caption)
+                    Toggle("", isOn: $settings.securityEnabled)
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .labelsHidden()
 
                     Spacer()
 
@@ -158,7 +167,7 @@ struct PaperScreenApp: App {
         } label: {
             Image(systemName: "menubar.rectangle")
                 .renderingMode(.template)
-                .opacity(controller.enabled ? 1.0 : 0.4)
+                .opacity(controller.enabled || settings.securityEnabled ? 1.0 : 0.4)
         }
         .menuBarExtraStyle(.window)
     }

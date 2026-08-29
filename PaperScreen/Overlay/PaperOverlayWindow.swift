@@ -3,8 +3,14 @@ import AppKit
 final class PaperOverlayWindow: NSWindow {
     private let tintLayer = CALayer()
     private let noiseLayer = CALayer()
-    private let securityTintLayer = CALayer()
     private let securityLayer = CALayer()
+    private let securityTintLayer = CALayer()
+
+    // Base opacities so paper visibility can be toggled independently
+    // of the security layers living in the same window.
+    private var noiseBase: Float = 0.12
+    private var tintBase: Float = 0.18
+    private var paperVisible = true
 
     init(screen: NSScreen, opacity: CGFloat) {
         super.init(contentRect: screen.frame, styleMask: [.borderless], backing: .buffered, defer: false)
@@ -41,18 +47,34 @@ final class PaperOverlayWindow: NSWindow {
     func configure(with texture: PaperTexture, opacity: CGFloat) {
         let settings = texture.settings
         tintLayer.backgroundColor = settings.tint.withAlphaComponent(0.14).cgColor
-        tintLayer.opacity = Float(settings.opacity)
+        tintBase = Float(settings.opacity)
+        noiseBase = Float(opacity)
         noiseLayer.compositingFilter = settings.blendMode
-        noiseLayer.opacity = Float(opacity)
+        applyPaperOpacity()
     }
 
     func setOpacity(_ value: CGFloat) {
-        noiseLayer.opacity = Float(value)
+        noiseBase = Float(value)
+        applyPaperOpacity()
+    }
+
+    /// Show/hide only the paper layers; security layers unaffected.
+    func setPaperVisible(_ visible: Bool) {
+        paperVisible = visible
+        applyPaperOpacity()
+    }
+
+    private func applyPaperOpacity() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        tintLayer.opacity = paperVisible ? tintBase : 0
+        noiseLayer.opacity = paperVisible ? noiseBase : 0
+        CATransaction.commit()
     }
 
     // MARK: - Security layer
 
-    /// `image == nil` disables the security layer entirely.
+    /// `texture == nil && tint == nil` disables the security layer entirely.
     func setSecurityLayers(tint: NSColor?, texture: CGImage?,
                            blendMode: String?, opacity: CGFloat) {
         CATransaction.begin()
@@ -60,22 +82,13 @@ final class PaperOverlayWindow: NSWindow {
 
         securityTintLayer.backgroundColor = tint?.cgColor
         securityTintLayer.opacity = Float(tint == nil ? 0 : opacity)
-        securityTintLayer.compositingFilter = "multiplyBlendMode"
+        securityTintLayer.compositingFilter = blendMode ?? "multiplyBlendMode"
 
         securityLayer.contents = texture
         securityLayer.opacity = Float(texture == nil ? 0 : opacity)
         securityLayer.compositingFilter = blendMode
         // full-screen pre-tiled image; default .resize gravity maps it 1:1 to pixels
 
-        CATransaction.commit()
-    }
-
-    /// Adjust only the security layer opacity (strength slider).
-    func setSecurityOpacity(_ value: CGFloat) {
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        securityTintLayer.opacity = Float(securityTintLayer.backgroundColor == nil ? 0 : value)
-        securityLayer.opacity = Float(securityLayer.contents == nil ? 0 : value)
         CATransaction.commit()
     }
 }

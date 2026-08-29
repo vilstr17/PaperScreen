@@ -3,9 +3,11 @@ import Combine
 
 final class PaperOverlayController: ObservableObject {
 
+    /// Window is on screen iff paper mode or privacy shield is active
+    /// (and the focused app is not excluded).
     private func updateVisibility() {
-        // Master switch AND per-app exclusion both count.
-        let shouldShow = enabled && !excludedApps.contains(focusedApp.frontBundleID ?? "")
+        let shouldShow = (enabled || settings.securityEnabled)
+            && !excludedApps.contains(focusedApp.frontBundleID ?? "")
         for window in windows.values {
             if shouldShow {
                 window.orderFrontRegardless()
@@ -13,6 +15,11 @@ final class PaperOverlayController: ObservableObject {
                 window.orderOut(nil)
             }
         }
+         // keep per-layer visibility in sync too
+         for window in windows.values {
+             window.setPaperVisible(enabled)
+         }
+         refreshSecurity()
     }
 
     func setTexture(_ texture: PaperTexture) {
@@ -24,13 +31,15 @@ final class PaperOverlayController: ObservableObject {
         }
     }
 
+    /// Paper mode master switch — affects ONLY the paper layers.
     @Published var enabled = true {
         didSet {
             updateVisibility()
         }
     }
 
-    /// Lowercased bundle IDs or app names excluded from the overlay.
+    /// Lowercased bundle IDs excluded from the overlay entirely
+    /// (applies to paper AND shield).
     @Published var excludedApps: Set<String> = [] {
         didSet {
             UserDefaults.standard.set(Array(excludedApps).sorted(), forKey: "excludedApps")
@@ -72,9 +81,12 @@ final class PaperOverlayController: ObservableObject {
             }
             .store(in: &cancellables)
 
-        // Security: any change re-renders the security layers.
         settings.$securityEnabled
-            .sink { [weak self] _ in self?.refreshSecurity() }
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                self.updateVisibility()
+                self.refreshSecurity()
+            }
             .store(in: &cancellables)
         settings.$securityTechnique
             .sink { [weak self] _ in self?.refreshSecurity() }
@@ -106,7 +118,7 @@ final class PaperOverlayController: ObservableObject {
         let opacity = securityOpacity()
 
         guard tech.usesTexture else {
-            // Contrast: uniform gray wash, multiplied over content
+            // Gray Merge: uniform wash, multiplied over content
             windows.values.forEach {
                 $0.setSecurityLayers(tint: tech.tint, texture: nil,
                                      blendMode: "multiplyBlendMode",
