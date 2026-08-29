@@ -3,6 +3,8 @@ import AppKit
 final class PaperOverlayWindow: NSWindow {
     private let tintLayer = CALayer()
     private let noiseLayer = CALayer()
+    private let securityTintLayer = CALayer()
+    private let securityLayer = CALayer()
 
     init(screen: NSScreen, opacity: CGFloat) {
         super.init(contentRect: screen.frame, styleMask: [.borderless], backing: .buffered, defer: false)
@@ -23,6 +25,12 @@ final class PaperOverlayWindow: NSWindow {
             noiseLayer.opacity = Float(opacity)
             noiseLayer.compositingFilter = "softLightBlendMode"
             root.addSublayer(noiseLayer)
+
+            securityLayer.frame = root.bounds
+            root.addSublayer(securityLayer)
+
+            securityTintLayer.frame = root.bounds
+            root.addSublayer(securityTintLayer)
         }
     }
 
@@ -40,5 +48,34 @@ final class PaperOverlayWindow: NSWindow {
 
     func setOpacity(_ value: CGFloat) {
         noiseLayer.opacity = Float(value)
+    }
+
+    // MARK: - Security layer
+
+    /// `image == nil` disables the security layer entirely.
+    func setSecurityLayers(tint: NSColor?, texture: CGImage?,
+                           blendMode: String?, opacity: CGFloat) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+
+        securityTintLayer.backgroundColor = tint?.cgColor
+        securityTintLayer.opacity = Float(tint == nil ? 0 : opacity)
+        securityTintLayer.compositingFilter = "multiplyBlendMode"
+
+        securityLayer.contents = texture
+        securityLayer.opacity = Float(texture == nil ? 0 : opacity)
+        securityLayer.compositingFilter = blendMode
+        // full-screen pre-tiled image; default .resize gravity maps it 1:1 to pixels
+
+        CATransaction.commit()
+    }
+
+    /// Adjust only the security layer opacity (strength slider).
+    func setSecurityOpacity(_ value: CGFloat) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        securityTintLayer.opacity = Float(securityTintLayer.backgroundColor == nil ? 0 : value)
+        securityLayer.opacity = Float(securityLayer.contents == nil ? 0 : value)
+        CATransaction.commit()
     }
 }

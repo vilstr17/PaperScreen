@@ -43,6 +43,7 @@ final class PaperOverlayController: ObservableObject {
     private let settings: PaperSettings
     private var windows: [String: PaperOverlayWindow] = [:]
     private let generator = NoiseTextureGenerator()
+    private let securityGenerator = SecurityTextureGenerator()
     private var cancellables = Set<AnyCancellable>()
 
     init(settings: PaperSettings) {
@@ -67,15 +68,77 @@ final class PaperOverlayController: ObservableObject {
         settings.$texture
             .receive(on: RunLoop.main)
             .sink { [weak self] texture in
-
                 self?.setTexture(texture)
-
             }
+            .store(in: &cancellables)
+
+        // Security: any change re-renders the security layers.
+        settings.$securityEnabled
+            .sink { [weak self] _ in self?.refreshSecurity() }
+            .store(in: &cancellables)
+        settings.$securityTechnique
+            .sink { [weak self] _ in self?.refreshSecurity() }
+            .store(in: &cancellables)
+        settings.$securityStrength
+            .sink { [weak self] _ in self?.refreshSecurity() }
             .store(in: &cancellables)
 
         rebuild()
     }
 
+    // MARK: - Security layer
+
+    private func securityOpacity() -> CGFloat {
+        CGFloat(settings.securityTechnique.baseOpacity * settings.securityStrength)
+    }
+
+    /// Rebuild the security layers on every window from current settings.
+    func refreshSecurity() {
+        guard settings.securityEnabled else {
+            windows.values.forEach {
+                $0.setSecurityLayers(tint: nil, texture: nil,
+                                     blendMode: nil, opacity: 0)
+            }
+            return
+        }
+
+        let tech = settings.securityTechnique
+        let opacity = securityOpacity()
+
+        guard tech.usesTexture else {
+            // Contrast: uniform gray wash, multiplied over content
+            windows.values.forEach {
+                $0.setSecurityLayers(tint: tech.tint, texture: nil,
+                                     blendMode: "multiplyBlendMode",
+                                     opacity: opacity)
+            }
+            return
+        }
+
+        // Per-screen pixel-exact texture (blinds / dither)
+        for screen in NSScreen.screens {
+            guard let win = windows["\(screen.hash)"] else { continue }
+            let scale = screen.backingScaleFactor
+
+            if let smallTile = securityGenerator.tile(
+                for: tech, scale: scale, strength: settings.securityStrength) {
+
+                let full = securityGenerator.tiled(
+                    tile: smallTile,
+                    size: win.frame.size,
+                    scale: scale,
+                    stretchVertically: tech == .blinds
+                )
+                win.setSecurityLayers(tint: nil, texture: full,
+                                      blendMode: tech.blendMode, opacity: opacity)
+            } else {
+                win.setSecurityLayers(tint: nil, texture: nil,
+                                      blendMode: nil, opacity: 0)
+            }
+        }
+    }
+
+    // MARK: - Rebuild
 
     func rebuild() {
         windows.removeAll()
@@ -92,6 +155,7 @@ final class PaperOverlayController: ObservableObject {
             windows["\(screen.hash)"] = w
         }
         updateVisibility()
+        refreshSecurity()
     }
 
     func setOpacity(_ value: CGFloat) {

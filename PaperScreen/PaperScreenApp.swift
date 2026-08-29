@@ -28,7 +28,7 @@ struct PaperScreenApp: App {
     var body: some Scene {
         MenuBarExtra {
             VStack(spacing: 12) {
-                // Header — one line: name + live status
+                // Header
                 HStack(spacing: 6) {
                     Image(systemName: "menubar.rectangle")
                         .frame(width: 18)
@@ -40,7 +40,7 @@ struct PaperScreenApp: App {
                         .foregroundStyle(controller.enabled ? .green : .secondary)
                 }
 
-                // Hero button — applies to whatever is on screen right now
+                // Hero button — per-app paper overlay
                 Button {
                     if let bid = controller.focusedApp.frontBundleID {
                         if currentAppExcluded {
@@ -63,7 +63,7 @@ struct PaperScreenApp: App {
                 .tint(currentAppExcluded ? .green : .primary)
                 .disabled(controller.focusedApp.frontBundleID == nil)
 
-                // Live controls — no Settings window needed for the basics
+                // Live controls — paper
                 VStack(alignment: .leading, spacing: 10) {
                     Picker("Style", selection: $settings.texture) {
                         ForEach(PaperTexture.allCases) { texture in
@@ -85,6 +85,36 @@ struct PaperScreenApp: App {
                     }
                 }
 
+                Divider()
+
+                // Security section
+                VStack(alignment: .leading, spacing: 10) {
+                    Toggle("Privacy Shield", isOn: $settings.securityEnabled)
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+
+                    if settings.securityEnabled {
+                        Picker("Technique", selection: $settings.securityTechnique) {
+                            ForEach(SecurityTechnique.allCases) { tech in
+                                Label(tech.displayName, systemImage: tech.systemImage)
+                                    .tag(tech)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+
+                        HStack(spacing: 8) {
+                            Image(systemName: "shield.lefthalf.filled")
+                                .foregroundStyle(.secondary)
+                            Slider(value: $settings.securityStrength, in: 0.1...1.0)
+                            Text("\(Int(settings.securityStrength * 100))%")
+                                .font(.caption)
+                                .monospacedDigit()
+                                .frame(width: 34, alignment: .trailing)
+                        }
+                    }
+                }
+
                 if !controller.excludedApps.isEmpty {
                     Text(controller.excludedApps.count == 1
                             ? "1 app without overlay"
@@ -95,7 +125,7 @@ struct PaperScreenApp: App {
 
                 Divider()
 
-                // Footer — master switch + window + quit
+                // Footer
                 HStack {
                     Toggle("Enabled", isOn: $controller.enabled)
                         .toggleStyle(.switch)
@@ -124,11 +154,9 @@ struct PaperScreenApp: App {
                 }
             }
             .padding(12)
-            .frame(width: 260)
+            .frame(width: 268)
         } label: {
-            Image(systemName: controller.enabled
-                    ? "menubar.rectangle"
-                    : "menubar.rectangle")
+            Image(systemName: "menubar.rectangle")
                 .renderingMode(.template)
                 .opacity(controller.enabled ? 1.0 : 0.4)
         }
