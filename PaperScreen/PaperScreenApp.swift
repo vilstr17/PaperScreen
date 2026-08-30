@@ -142,13 +142,6 @@ struct PaperScreenApp: App {
                             .frame(width: 34, alignment: .trailing)
                     }
                     .opacity(settings.securityEnabled ? 1 : 0.4)
-
-                    if settings.securityEnabled
-                        && settings.securityTechnique == .spotlight {
-                        Text("Uses the camera. Black screen with a window following your face.")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
                 }
 
                 if !controller.excludedApps.isEmpty {

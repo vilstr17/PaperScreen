@@ -26,15 +26,12 @@ final class PaperOverlayController: ObservableObject {
 
     /// Repaints ONLY the security layers — called on any shield change.
     private func applySecurity() {
-        // Always stop side-effects first
         stopFlicker()
-        SpotlightTracker.shared.stop()
 
         guard settings.securityEnabled else {
             windows.values.forEach {
                 $0.setSecurityLayers(tint: nil, texture: nil,
                                      blendMode: nil, opacity: 0)
-                $0.setSpotlight(active: false, hole: .zero)
             }
             return
         }
@@ -53,7 +50,6 @@ final class PaperOverlayController: ObservableObject {
                     window.setSecurityLayers(tint: nil, texture: full,
                                              blendMode: nil, opacity: securityOpacity())
                 }
-                window.setSpotlight(active: false, hole: .zero)
             }
 
         case .veil:
@@ -61,21 +57,10 @@ final class PaperOverlayController: ObservableObject {
             windows.values.forEach {
                 $0.setSecurityLayers(tint: nil, texture: veilImage,
                                      blendMode: nil, opacity: securityOpacity())
-                $0.setSpotlight(active: false, hole: .zero)
             }
 
         case .flicker:
-            windows.values.forEach {
-                $0.setSecurityLayers(tint: nil, texture: nil, blendMode: nil, opacity: 0)
-                $0.setSpotlight(active: false, hole: .zero)
-            }
             startFlicker()
-
-        case .spotlight:
-            windows.values.forEach {
-                $0.setSecurityLayers(tint: nil, texture: nil, blendMode: nil, opacity: 0)
-            }
-            SpotlightTracker.shared.start()
         }
     }
 
@@ -114,6 +99,10 @@ final class PaperOverlayController: ObservableObject {
 
         let d = UserDefaults.standard
         excludedApps = Set(d.stringArray(forKey: "excludedApps") ?? [])
+        // Persisted technique may be a removed case; fall back silently
+        if SecurityTechnique(rawValue: UserDefaults.standard.string(forKey: "securityTechnique") ?? "") == nil {
+            settings.securityTechnique = .blinds
+        }
 
         focusedApp.$frontBundleID
             .receive(on: RunLoop.main)
@@ -192,69 +181,6 @@ final class PaperOverlayController: ObservableObject {
         windows.values.forEach {
             $0.setSecurityLayers(tint: nil, texture: frame,
                                  blendMode: nil, opacity: securityOpacity())
-           $0.setSpotlight(active: false, hole: .zero)
-        }
-    }
-
-    // MARK: - Spotlight pump
-
-    private func startSpotlightPump() {
-        SpotlightTracker.shared.$spotlightRect
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.updateSpotlightHole() }
-            .store(in: &spotlightCancellables)
-        SpotlightTracker.shared.$faceVisible
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.updateSpotlightHole() }
-            .store(in: &spotlightCancellables)
-    }
-
-    private var spotlightCancellables = Set<AnyCancellable>()
-    private var spotlightPumpStarted = false
-
-    private func updateSpotlightHole() {
-        guard settings.securityEnabled,
-              settings.securityTechnique == .spotlight else { return }
-
-        let tracker = SpotlightTracker.shared
-        let hole = tracker.spotlightRect
-
-        if tracker.cameraDenied {
-            // Camera refused: static centered hole, full black around
-            windows.values.forEach {
-                $0.setSecurityLayers(tint: nil, texture: nil, blendMode: nil, opacity: 0)
-                var local = hole
-                local.origin.x -= $0.frame.minX
-                local.origin.y -= $0.frame.minY
-                $0.setSpotlight(active: true, hole: local)
-            }
-        } else if tracker.faceVisible {
-            windows.values.forEach {
-                $0.setSecurityLayers(tint: nil, texture: nil, blendMode: nil, opacity: 0)
-                var local = hole
-                local.origin.x -= $0.frame.minX
-                local.origin.y -= $0.frame.minY
-                $0.setSpotlight(active: true, hole: local)
-            }
-        } else if !tracker.parked {
-            // Grace window: hold the last hole position, full black
-            windows.values.forEach {
-                $0.setSecurityLayers(tint: nil, texture: nil, blendMode: nil, opacity: 0)
-                var local = hole
-                local.origin.x -= $0.frame.minX
-                local.origin.y -= $0.frame.minY
-                $0.setSpotlight(active: true, hole: local)
-            }
-        } else {
-            // No face yet / lost: full black with centered hole
-            let center = tracker.spotlightRect
-            windows.values.forEach {
-                $0.setSecurityLayers(tint: nil, texture: nil, blendMode: nil, opacity: 0)
-                var local = center
-                local.origin.x -= $0.frame.minX
-                local.origin.y -= $0.frame.minY
-                $0.setSpotlight(active: true, hole: local)
-            }
         }
     }
 
@@ -276,10 +202,6 @@ final class PaperOverlayController: ObservableObject {
             if let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? Int {
                 windows[String(displayID)] = w
             }
-        }
-        if !spotlightPumpStarted {
-            startSpotlightPump()
-            spotlightPumpStarted = true
         }
         applyState()
     }

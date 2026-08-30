@@ -16,10 +16,6 @@ enum SecurityTechnique: String, CaseIterable, Identifiable {
     /// from the side scattered light merges with text, contrast -> 0.
     case veil
 
-    /// Black sheet with a cut-out hole following the user's face
-    /// (Vision face detection on the front camera, ~2 Hz).
-    case spotlight
-
     var id: String { rawValue }
 
     var displayName: String {
@@ -27,7 +23,6 @@ enum SecurityTechnique: String, CaseIterable, Identifiable {
         case .blinds: return "Blinds"
         case .flicker: return "Static"
         case .veil: return "Veil"
-        case .spotlight: return "Spot"
         }
     }
 
@@ -36,7 +31,6 @@ enum SecurityTechnique: String, CaseIterable, Identifiable {
         case .blinds: return "rectangle.split.3x1"
         case .flicker: return "sparkles"
         case .veil: return "cloud.fog"
-        case .spotlight: return "flashlight.on.fill"
         }
     }
 
@@ -46,7 +40,6 @@ enum SecurityTechnique: String, CaseIterable, Identifiable {
         case .blinds: return 0.55
         case .flicker: return 0.22
         case .veil: return 0.62
-        case .spotlight: return 0.95
         }
     }
 
@@ -54,13 +47,7 @@ enum SecurityTechnique: String, CaseIterable, Identifiable {
     var blendMode: String? { nil }
 
     /// Whether the technique draws a pre-tiled texture layer.
-    var usesTexture: Bool {
-        switch self {
-        case .blinds, .veil, .flicker: return true
-        case .spotlight: return false
-        }
-    }
+    var usesTexture: Bool { true }
 
     var animates: Bool { self == .flicker }
-    var needsCamera: Bool { self == .spotlight }
 }
