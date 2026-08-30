@@ -216,9 +216,28 @@ final class PaperOverlayController: ObservableObject {
         guard settings.securityEnabled,
               settings.securityTechnique == .spotlight else { return }
 
-        let hole = SpotlightTracker.shared.spotlightRect
+        let tracker = SpotlightTracker.shared
+        let hole = tracker.spotlightRect
 
-        if SpotlightTracker.shared.faceVisible {
+        if tracker.cameraDenied {
+            // Camera refused: static centered hole, full black around
+            windows.values.forEach {
+                $0.setSecurityLayers(tint: nil, texture: nil, blendMode: nil, opacity: 0)
+                var local = hole
+                local.origin.x -= $0.frame.minX
+                local.origin.y -= $0.frame.minY
+                $0.setSpotlight(active: true, hole: local)
+            }
+        } else if tracker.faceVisible {
+            windows.values.forEach {
+                $0.setSecurityLayers(tint: nil, texture: nil, blendMode: nil, opacity: 0)
+                var local = hole
+                local.origin.x -= $0.frame.minX
+                local.origin.y -= $0.frame.minY
+                $0.setSpotlight(active: true, hole: local)
+            }
+        } else if !tracker.parked {
+            // Grace window: hold the last hole position, full black
             windows.values.forEach {
                 $0.setSecurityLayers(tint: nil, texture: nil, blendMode: nil, opacity: 0)
                 var local = hole
@@ -227,12 +246,14 @@ final class PaperOverlayController: ObservableObject {
                 $0.setSpotlight(active: true, hole: local)
             }
         } else {
-            // No face: dim veil fallback so the shield never looks "off"
-            if veilImage == nil { veilImage = advancedGenerator.veilTile() }
+            // No face yet / lost: full black with centered hole
+            let center = tracker.spotlightRect
             windows.values.forEach {
-                $0.setSpotlight(active: false, hole: .zero)
-                $0.setSecurityLayers(tint: nil, texture: veilImage,
-                                     blendMode: nil, opacity: 0.5)
+                $0.setSecurityLayers(tint: nil, texture: nil, blendMode: nil, opacity: 0)
+                var local = center
+                local.origin.x -= $0.frame.minX
+                local.origin.y -= $0.frame.minY
+                $0.setSpotlight(active: true, hole: local)
             }
         }
     }
