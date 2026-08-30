@@ -1,13 +1,43 @@
 import AppKit
 
+/// Draws a full-window black sheet with a rectangular hole (spotlight).
+final class SpotlightMaskLayer: CALayer {
+    var hole: NSRect = .zero {
+        didSet { setNeedsDisplay() }
+    }
+    private var holeCornerRadius: CGFloat = 24
+
+    override func draw(in ctx: CGContext) {
+        guard bounds.width > 0 else { return }
+        ctx.setFillColor(NSColor.black.cgColor)
+        ctx.fill(bounds)
+
+        if hole.width > 0, hole.height > 0 {
+            // Convert window coords (top-left origin in layer space is
+            // flipped: CALayer geometry is bottom-left) — the window is
+            // borderless fullscreen, so local == global shifted by origin.
+            let local = NSRect(
+                x: hole.minX,
+                y: hole.minY,
+                width: hole.width,
+                height: hole.height
+            )
+            let path = CGPath(roundedRect: local, cornerWidth: holeCornerRadius,
+                              cornerHeight: holeCornerRadius, transform: nil)
+            ctx.setBlendMode(.clear)     // punch a real hole (alpha 0) so the apps show through
+            ctx.addPath(path)
+            ctx.fillPath()
+        }
+    }
+}
+
 final class PaperOverlayWindow: NSWindow {
     private let tintLayer = CALayer()
     private let noiseLayer = CALayer()
     private let securityLayer = CALayer()
     private let securityTintLayer = CALayer()
+    private let spotlightLayer = SpotlightMaskLayer()
 
-    // Base opacities so paper visibility can be toggled independently
-    // of the security layers living in the same window.
     private var noiseBase: Float = 0.12
     private var tintBase: Float = 0.18
     private var paperVisible = true
@@ -37,6 +67,11 @@ final class PaperOverlayWindow: NSWindow {
 
             securityTintLayer.frame = root.bounds
             root.addSublayer(securityTintLayer)
+
+            spotlightLayer.frame = root.bounds
+            spotlightLayer.contentsScale = screen.backingScaleFactor
+            spotlightLayer.needsDisplayOnBoundsChange = true
+            root.addSublayer(spotlightLayer)
         }
     }
 
@@ -58,7 +93,6 @@ final class PaperOverlayWindow: NSWindow {
         applyPaperOpacity()
     }
 
-    /// Show/hide only the paper layers; security layers unaffected.
     func setPaperVisible(_ visible: Bool) {
         paperVisible = visible
         applyPaperOpacity()
@@ -74,7 +108,6 @@ final class PaperOverlayWindow: NSWindow {
 
     // MARK: - Security layer
 
-    /// `texture == nil && tint == nil` disables the security layer entirely.
     func setSecurityLayers(tint: NSColor?, texture: CGImage?,
                            blendMode: String?, opacity: CGFloat) {
         CATransaction.begin()
@@ -87,8 +120,23 @@ final class PaperOverlayWindow: NSWindow {
         securityLayer.contents = texture
         securityLayer.opacity = Float(texture == nil ? 0 : opacity)
         securityLayer.compositingFilter = blendMode
-        // full-screen pre-tiled image; default .resize gravity maps it 1:1 to pixels
 
+        CATransaction.commit()
+    }
+
+    // MARK: - Spotlight
+
+    func setSpotlight(active: Bool, hole: NSRect) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        if active {
+            spotlightLayer.isHidden = false
+            spotlightLayer.opacity = 1
+            spotlightLayer.hole = hole
+            spotlightLayer.setNeedsDisplay()
+        } else {
+            spotlightLayer.isHidden = true
+        }
         CATransaction.commit()
     }
 }

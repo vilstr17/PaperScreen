@@ -1,73 +1,66 @@
 import AppKit
 
 /// Privacy ("security") techniques layered on top of paper mode.
-/// All three exploit IPS gamma falloff at oblique viewing angles:
-/// content that is readable head-on degrades for shoulder-surfers.
+/// All exploit IPS gamma falloff at oblique viewing angles.
 enum SecurityTechnique: String, CaseIterable, Identifiable {
 
     /// Vertical 1-physical-pixel black blinds (1 px line, 1 px gap).
-    /// Simulates a physical privacy filter via sub-pixel parallax.
     case blinds
 
-    /// Fine ordered (Bayer 8x8) dither mesh, hard-light blended.
-    /// Burns into text edges when viewed from the side.
-    case dither
+    /// Dynamic high-frequency GPU noise, low amplitude, ~16 fps.
+    /// Head-on the eye averages it out; from the side it destroys
+    /// letter edges ("broken display").
+    case flicker
 
-    /// Contrast compression: mid-gray wash lifts the black floor,
-    /// so the dynamic range left for a side viewer collapses.
-    case contrast
+    /// Heavily blurred gray veil. Head-on the eye filters the fog out;
+    /// from the side scattered light merges with text, contrast -> 0.
+    case veil
+
+    /// Black sheet with a cut-out hole following the user's face
+    /// (Vision face detection on the front camera, ~2 Hz).
+    case spotlight
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
         case .blinds: return "Blinds"
-        case .dither: return "Dither"
-        case .contrast: return "Gray Merge"
+        case .flicker: return "Static"
+        case .veil: return "Veil"
+        case .spotlight: return "Spot"
         }
     }
 
     var systemImage: String {
         switch self {
         case .blinds: return "rectangle.split.3x1"
-        case .dither: return "grid"
-        case .contrast: return "circle.lefthalf.filled"
+        case .flicker: return "sparkles"
+        case .veil: return "cloud.fog"
+        case .spotlight: return "flashlight.on.fill"
         }
     }
 
-    /// Base layer opacity at strength = 1.0
+    /// Layer alpha at strength = 1.0.
     var baseOpacity: CGFloat {
         switch self {
         case .blinds: return 0.55
-        case .dither: return 0.12
-        case .contrast: return 0.45
+        case .flicker: return 0.22
+        case .veil: return 0.62
+        case .spotlight: return 0.95
         }
     }
 
-    /// CALayer compositing filter; nil = normal blending.
-    var blendMode: String? {
-        switch self {
-        case .blinds: return nil // plain source-over: crisp black lines
-        case .dither: return "hardLightBlendMode"
-        case .contrast: return nil
-        }
-    }
+    /// CALayer compositing filter; nil = plain source-over.
+    var blendMode: String? { nil }
 
-    /// Tint applied by the window for this technique (nil = textureless tint only).
-    var tint: NSColor? {
-        switch self {
-        case .contrast:
-            return NSColor(calibratedWhite: 0.5, alpha: 1)
-        default:
-            return nil
-        }
-    }
-
-    /// Whether this technique renders the strip/texture layer.
+    /// Whether the technique draws a pre-tiled texture layer.
     var usesTexture: Bool {
         switch self {
-        case .blinds, .dither: return true
-        case .contrast: return false
+        case .blinds, .veil, .flicker: return true
+        case .spotlight: return false
         }
     }
+
+    var animates: Bool { self == .flicker }
+    var needsCamera: Bool { self == .spotlight }
 }
