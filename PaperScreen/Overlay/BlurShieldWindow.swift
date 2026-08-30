@@ -3,19 +3,24 @@ import AppKit
 /// Blur-everything privacy shield with a clear circle that follows
 /// the mouse cursor. Zero screen capture: NSVisualEffectView with
 /// .behindWindow lets WindowServer blur the content below in hardware.
-final class BlurShieldWindow: NSWindow, NSWindowDelegate {
+/// The fog alpha is adjustable — subtle by design, contours stay visible.
+final class BlurShieldWindow: NSWindow {
 
-    let effectView: NSVisualEffectView
-    let maskLayer = CAShapeLayer()
-    let containerLayer = CALayer()
+    private let maskLayer = CAShapeLayer()
+    private let effectView: NSVisualEffectView
 
-    /// Hole radius in points.
-    var holeRadius: CGFloat = 140 {
+    /// Clear-circle radius in points.
+    var holeRadius: CGFloat = 150 {
         didSet { updateMask() }
     }
 
-    /// Center of the hole in *window local* coordinates (top-left origin,
-    /// as AppKit view geometry uses flipped coordinates inside windows).
+    /// How strong the fog is (0 = invisible, 1 = heavy).
+    var fogAlpha: CGFloat = 0.30 {
+        didSet { effectView.alphaValue = fogAlpha }
+    }
+
+    /// Hole center in window-local coordinates (bottom-left origin,
+    /// matching both AppKit global coords and unflipped CALayer space).
     var holeCenter: CGPoint = CGPoint(x: -10000, y: -10000) {
         didSet { updateMask() }
     }
@@ -36,36 +41,28 @@ final class BlurShieldWindow: NSWindow, NSWindowDelegate {
         ignoresMouseEvents = true
         level = .screenSaver
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
-        delegate = self
 
         effectView.material = .underWindowBackground
         effectView.blendingMode = .behindWindow
         effectView.state = .active
         effectView.autoresizingMask = [.width, .height]
-        effectView.frame = NSRect(origin: .zero, size: frame.size)
+        effectView.alphaValue = fogAlpha
+        effectView.wantsLayer = true
 
-        let content = NSView(frame: NSRect(origin: .zero, size: frame.size))
-        content.wantsLayer = true
-        content.addSubview(effectView)
-
-        // Inverted mask: blur everywhere except the hole.
-        containerLayer.frame = CGRect(origin: .zero, size: frame.size)
-        content.layer?.addSublayer(containerLayer)
-
-        maskLayer.fillRule = .evenOdd
-        containerLayer.mask = maskLayer
-        containerLayer.backgroundColor = NSColor.black.withAlphaComponent(0.08).cgColor
-
-        contentView = content
+        contentView = effectView
+        effectView.layer?.mask = maskLayer
+        effectView.layer?.masksToBounds = false
         updateMask()
     }
 
     private func updateMask() {
+        guard let bounds = contentView?.bounds, bounds.width > 0 else { return }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        let frame = CGRect(origin: .zero, size: frame.size)
+
+        // Even-odd: full rect (blur) minus ellipse (hole) = inverted mask
         let fullPath = CGMutablePath()
-        fullPath.addRect(frame)
+        fullPath.addRect(CGRect(origin: .zero, size: bounds.size))
 
         let hole = CGPath(
             ellipseIn: CGRect(
@@ -77,16 +74,9 @@ final class BlurShieldWindow: NSWindow, NSWindowDelegate {
             transform: nil
         )
         fullPath.addPath(hole)
+
         maskLayer.path = fullPath
-        maskLayer.frame = containerLayer.bounds
-         CATransaction.commit()
+        maskLayer.frame = CGRect(origin: .zero, size: bounds.size)
+        CATransaction.commit()
     }
-
-    func windowShouldClose(_ sender: NSWindow) -> Bool {
-        false
-    }
-}
-
-private extension CGSize {
-    var asRect: NSRect { NSRect(origin: .zero, size: self) }
 }

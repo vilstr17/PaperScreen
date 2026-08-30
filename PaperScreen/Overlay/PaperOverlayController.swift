@@ -35,6 +35,10 @@ final class PaperOverlayController: ObservableObject {
 
         for screen in NSScreen.screens {
             let win = BlurShieldWindow(screen: screen)
+            // Slider determines fog + hole size before first paint
+            let s = CGFloat(settings.securityStrength)
+            win.holeRadius = 80 + s * 300
+            win.fogAlpha = 0.55 - s * 0.45
             win.orderFrontRegardless()
             let id = (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? Int)
                 .map(String.init) ?? UUID().uuidString
@@ -62,9 +66,11 @@ final class PaperOverlayController: ObservableObject {
         for (id, win) in blurShields {
             guard let screen = screenForDisplayID(id) else { continue }
             let sf = screen.frame
-            // global (bottom-left origin) -> window local (top-left origin)
+            // Both NSEvent.mouseLocation and NSWindow frame use a
+            // bottom-left global origin; holeCenter is in window-local
+            // coords with the SAME orientation, so plain translation:
             let localX = global.x - sf.minX
-            let localY = sf.maxY - global.y
+            let localY = global.y - sf.minY
             let onScreen = global.x >= 0 && sf.contains(global)
             win.holeCenter = onScreen
                 ? CGPoint(x: localX, y: localY)
@@ -149,10 +155,16 @@ final class PaperOverlayController: ObservableObject {
 
     // MARK: Helpers
 
-    /// Strength slider maps to hole size: 10% -> small, 100% -> huge.
+    /// Strength slider maps to BOTH shot size and fog density:
+    /// small hole = heavier fog, big hole = lighter fog.
     private func updateBlurRadius() {
-        let r = 60 + CGFloat(settings.securityStrength) * 260
-        for win in blurShields.values { win.holeRadius = r }
+        let s = CGFloat(settings.securityStrength)
+        let r = 80 + s * 300
+        let fog = 0.55 - s * 0.45   // 0.5 at 10% ... 0.1 at 100%
+        for win in blurShields.values {
+            win.holeRadius = r
+            win.fogAlpha = fog
+        }
     }
 
     private func screenForDisplayID(_ id: String) -> NSScreen? {
