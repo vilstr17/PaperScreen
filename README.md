@@ -51,6 +51,12 @@ Then launch PaperScreen normally.
 2. **Texture generation** — Core Image's random noise generator is blurred and level-adjusted to produce an organic grain.
 3. **Compositing** — the noise layer is applied, which darkens highlights and reduces perceived contrast without shifting hue — the effect of a physical matte screen protector, in software.
 
+## Note on the attempted privacy shield
+
+This fork also experimented with a software privacy shield (oblique-angle grain techniques, dynamic dithering, a blurred-veil mode, face-tracked spotlight via Vision/on-device camera detection, and finally a system-blur overlay with a cursor-following clear circle). None of the approaches produced a satisfying result: the effects were either too weak to actually block shoulder-surfing, too disruptive to everyday use, or both. All of that code has been removed — this fork now carries only the original paper overlay plus per-app exclusion, opacity/texture settings and persistence.
+
+If you want a real privacy filter, a physical clip-on screen filter is still the only thing that genuinely works. We decided the software approach was not worth it.
+
 ## Contributing
 
 Feel free to:

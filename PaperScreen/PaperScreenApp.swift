@@ -25,15 +25,6 @@ struct PaperScreenApp: App {
         controller.excludedApps.contains(controller.focusedApp.frontBundleID ?? "")
     }
 
-    private var statusText: String {
-        switch (settings.paperEnabled, settings.securityEnabled) {
-        case (true, true): return "On"
-        case (true, false): return "Paper"
-        case (false, true): return "Shield"
-        case (false, false): return "Off"
-        }
-    }
-
     var body: some Scene {
         MenuBarExtra {
             VStack(spacing: 12) {
@@ -44,12 +35,9 @@ struct PaperScreenApp: App {
                     Text("PaperScreen")
                         .font(.headline)
                     Spacer()
-                    Text(statusText)
+                    Text(settings.paperEnabled ? "On" : "Off")
                         .font(.caption)
-                        .foregroundStyle(
-                            settings.paperEnabled || settings.securityEnabled
-                                ? .green : .secondary
-                        )
+                        .foregroundStyle(settings.paperEnabled ? .green : .secondary)
                 }
 
                 // ══ SECTION 1: PAPER MODE ══
@@ -107,34 +95,6 @@ struct PaperScreenApp: App {
                     }
                 }
 
-                Divider()
-
-                // ══ SECTION 2: PRIVACY SHIELD ══
-                VStack(spacing: 10) {
-                    HStack {
-                        Text("PRIVACY SHIELD")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Toggle("", isOn: $settings.securityEnabled)
-                            .toggleStyle(.switch)
-                            .controlSize(.mini)
-                            .labelsHidden()
-                    }
-
-                    HStack(spacing: 8) {
-                        Image(systemName: "cursorarrow.rays")
-                            .foregroundStyle(.secondary)
-                        Slider(value: $settings.securityStrength, in: 0.1...1.0)
-                            .disabled(!settings.securityEnabled)
-                        Text("Blur everywhere, clear at cursor")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 90, alignment: .leading)
-                    }
-                    .opacity(settings.securityEnabled ? 1 : 0.4)
-                }
-
                 if !controller.excludedApps.isEmpty {
                     Text(controller.excludedApps.count == 1
                             ? "1 app without overlay"
@@ -174,7 +134,7 @@ struct PaperScreenApp: App {
         } label: {
             Image(systemName: "menubar.rectangle")
                 .renderingMode(.template)
-                .opacity(settings.paperEnabled || settings.securityEnabled ? 1.0 : 0.4)
+                .opacity(settings.paperEnabled ? 1.0 : 0.4)
         }
         .menuBarExtraStyle(.window)
     }
