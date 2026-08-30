@@ -59,7 +59,7 @@ struct PaperScreenApp: App {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Toggle("", isOn: $controller.enabled)
+                        Toggle("", isOn: $settings.paperEnabled)
                             .toggleStyle(.switch)
                             .controlSize(.mini)
                             .labelsHidden()
@@ -85,8 +85,7 @@ struct PaperScreenApp: App {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .tint(currentAppExcluded ? .green : .primary)
-                    .disabled(!controller.enabled
-                              || controller.focusedApp.frontBundleID == nil)
+                    .disabled(controller.focusedApp.frontBundleID == nil)
 
                     Picker("", selection: $settings.texture) {
                         ForEach(PaperTexture.allCases) { texture in
@@ -96,19 +95,16 @@ struct PaperScreenApp: App {
                     .pickerStyle(.menu)
                     .labelsHidden()
                     .frame(maxWidth: .infinity)
-                    .disabled(!controller.enabled)
 
                     HStack(spacing: 8) {
                         Image(systemName: "circle.lefthalf.filled")
                             .foregroundStyle(.secondary)
                         Slider(value: $settings.opacity, in: 0.05...0.4)
-                            .disabled(!controller.enabled)
                         Text("\(Int(settings.opacity * 100))%")
                             .font(.caption)
                             .monospacedDigit()
                             .frame(width: 34, alignment: .trailing)
                     }
-                    .opacity(controller.enabled ? 1 : 0.4)
                 }
 
                 Divider()

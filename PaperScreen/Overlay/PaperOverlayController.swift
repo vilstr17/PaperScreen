@@ -29,10 +29,11 @@ final class PaperOverlayController: ObservableObject {
     }
 
     /// Paper mode master switch — affects ONLY the paper layers.
-    @Published var enabled = true {
-        didSet {
-            updateVisibility()
-        }
+    /// Backed by PaperSettings.paperEnabled so it persists and stays in
+    /// sync with the UI binding.
+    var enabled: Bool {
+        get { settings.paperEnabled }
+        set { settings.paperEnabled = newValue }
     }
 
     /// Bundle IDs excluded from the overlay entirely (paper AND shield).
@@ -91,6 +92,21 @@ final class PaperOverlayController: ObservableObject {
             .sink { [weak self] _ in
                 self?.refreshSecurity()
                 self?.updateFlickerTimer()
+            }
+            .store(in: &cancellables)
+
+        // Paper master toggle (paperEnabled) drives layer visibility only
+        settings.$paperEnabled
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                let show = (self.enabled || self.settings.securityEnabled)
+                    && !self.excludedApps.contains(self.focusedApp.frontBundleID ?? "")
+                self.windows.values.forEach {
+                    if show { $0.orderFrontRegardless() } else { $0.orderOut(nil) }
+                    $0.setPaperVisible(self.enabled)
+                }
             }
             .store(in: &cancellables)
 
@@ -202,20 +218,37 @@ final class PaperOverlayController: ObservableObject {
 
     // MARK: - Spotlight
 
+    /// When Spot is active but no face is seen (camera denied, user away),
+    /// fall back to a dim veil so the shield never looks "off".
     private func updateSpotlight() {
-        let active = settings.securityEnabled
+        let techActive = settings.securityEnabled
             && settings.securityTechnique == .spotlight
-            && SpotlightTracker.shared.faceVisible
-            && (enabled || settings.securityEnabled)  // window-level gate below
+
+        guard techActive else {
+            windows.values.forEach { $0.setSpotlight(active: false, hole: .zero) }
+            return
+        }
 
         let hole = SpotlightTracker.shared.spotlightRect
-        // Convert global rect to each window's local layer space.
-        for (key, win) in windows {
-            guard screenForWindowKey(key) != nil else { continue }
-            var local = hole
-            local.origin.x -= win.frame.minX
-            local.origin.y -= win.frame.minY
-            win.setSpotlight(active: active, hole: local)
+
+        if SpotlightTracker.shared.faceVisible {
+            // Face tracked: clear the texture/tint layers, paint the sheet+hole
+            windows.values.forEach { $0.setSecurityLayers(tint: nil, texture: nil, blendMode: nil, opacity: 0) }
+            for (key, win) in windows {
+                guard screenForWindowKey(key) != nil else { continue }
+                var local = hole
+                local.origin.x -= win.frame.minX
+                local.origin.y -= win.frame.minY
+                win.setSpotlight(active: true, hole: local)
+            }
+        } else {
+            // No face: dim veil fallback, never nothing
+            windows.values.forEach {
+                $0.setSpotlight(active: false, hole: .zero)
+                if veilImage == nil { veilImage = advancedGenerator.veilTile() }
+                $0.setSecurityLayers(tint: nil, texture: veilImage,
+                                     blendMode: nil, opacity: 0.5)
+            }
         }
     }
 

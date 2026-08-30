@@ -23,6 +23,11 @@ final class PaperSettings: ObservableObject {
         didSet { UserDefaults.standard.set(securityStrength, forKey: "securityStrength") }
     }
 
+    // Paper master — persisted so relaunch restores paper state too
+    @Published var paperEnabled: Bool {
+        didSet { UserDefaults.standard.set(paperEnabled, forKey: "paperEnabled") }
+    }
+
     init() {
         let d = UserDefaults.standard
         opacity = d.object(forKey: "opacity") as? Double ?? 0.12
@@ -34,5 +39,7 @@ final class PaperSettings: ObservableObject {
         let rawTech = d.string(forKey: "securityTechnique") ?? ""
         securityTechnique = SecurityTechnique(rawValue: rawTech) ?? .blinds
         securityStrength = d.object(forKey: "securityStrength") as? Double ?? 0.6
+
+        paperEnabled = d.object(forKey: "paperEnabled") as? Bool ?? true
     }
 }
