@@ -26,7 +26,7 @@ struct PaperScreenApp: App {
     }
 
     private var statusText: String {
-        switch (controller.enabled, settings.securityEnabled) {
+        switch (settings.paperEnabled, settings.securityEnabled) {
         case (true, true): return "On"
         case (true, false): return "Paper"
         case (false, true): return "Shield"
@@ -47,7 +47,7 @@ struct PaperScreenApp: App {
                     Text(statusText)
                         .font(.caption)
                         .foregroundStyle(
-                            controller.enabled || settings.securityEnabled
+                            settings.paperEnabled || settings.securityEnabled
                                 ? .green : .secondary
                         )
                 }
@@ -190,7 +190,7 @@ struct PaperScreenApp: App {
         } label: {
             Image(systemName: "menubar.rectangle")
                 .renderingMode(.template)
-                .opacity(controller.enabled || settings.securityEnabled ? 1.0 : 0.4)
+                .opacity(settings.paperEnabled || settings.securityEnabled ? 1.0 : 0.4)
         }
         .menuBarExtraStyle(.window)
     }
