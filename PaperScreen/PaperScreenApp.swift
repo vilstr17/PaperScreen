@@ -122,24 +122,15 @@ struct PaperScreenApp: App {
                             .labelsHidden()
                     }
 
-                    Picker("", selection: $settings.securityTechnique) {
-                        ForEach(SecurityTechnique.allCases) { tech in
-                            Text(tech.displayName).tag(tech)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .disabled(!settings.securityEnabled)
-
                     HStack(spacing: 8) {
-                        Image(systemName: "shield")
+                        Image(systemName: "cursorarrow.rays")
                             .foregroundStyle(.secondary)
                         Slider(value: $settings.securityStrength, in: 0.1...1.0)
                             .disabled(!settings.securityEnabled)
-                        Text("\(Int(settings.securityStrength * 100))%")
-                            .font(.caption)
-                            .monospacedDigit()
-                            .frame(width: 34, alignment: .trailing)
+                        Text("Blur everywhere, clear at cursor")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .frame(width: 90, alignment: .leading)
                     }
                     .opacity(settings.securityEnabled ? 1 : 0.4)
                 }

@@ -37,7 +37,7 @@ final class PaperSettings: ObservableObject {
 
         securityEnabled = d.object(forKey: "securityEnabled") as? Bool ?? false
         let rawTech = d.string(forKey: "securityTechnique") ?? ""
-        securityTechnique = SecurityTechnique(rawValue: rawTech) ?? .blinds
+        securityTechnique = SecurityTechnique(rawValue: rawTech) ?? .spotlightFollow
         securityStrength = d.object(forKey: "securityStrength") as? Double ?? 0.6
 
         paperEnabled = d.object(forKey: "paperEnabled") as? Bool ?? true
